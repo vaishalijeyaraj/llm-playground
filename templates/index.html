@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LLM Playground</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:'Segoe UI',sans-serif;background:#0a0a0a;color:#f0f0f0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
+
+    /* HEADER */
+    header{background:#111;padding:14px 24px;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    header h1{font-size:18px;font-weight:800;color:#00d084;letter-spacing:-0.5px;}
+    .header-right{display:flex;align-items:center;gap:12px;}
+    .badge{background:#1a1a1a;border:1px solid #2a2a2a;color:#888;font-size:11px;padding:4px 10px;border-radius:20px;}
+
+    /* TABS */
+    .tabs{background:#111;padding:0 24px;border-bottom:1px solid #222;display:flex;gap:0;flex-shrink:0;}
+    .tab{padding:12px 20px;font-size:13px;font-weight:600;color:#555;cursor:pointer;border-bottom:2px solid transparent;transition:all 0.2s;}
+    .tab:hover{color:#aaa;}
+    .tab.active{color:#00d084;border-bottom-color:#00d084;}
+
+    /* CONTROLS */
+    .controls{background:#111;padding:10px 24px;border-bottom:1px solid #222;display:flex;gap:16px;align-items:center;flex-wrap:wrap;flex-shrink:0;}
+    .ctrl-group{display:flex;align-items:center;gap:8px;}
+    .ctrl-group label{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;}
+    select,input[type="range"]{background:#1a1a1a;color:#f0f0f0;border:1px solid #2a2a2a;border-radius:6px;padding:5px 8px;font-size:12px;outline:none;}
+    select:focus{border-color:#00d084;}
+    .temp-val{font-size:12px;color:#00d084;min-width:24px;}
+    .system-prompt-row{width:100%;display:flex;align-items:center;gap:8px;}
+    .system-prompt-row input{flex:1;background:#1a1a1a;color:#f0f0f0;border:1px solid #2a2a2a;border-radius:6px;padding:5px 10px;font-size:12px;outline:none;}
+    .system-prompt-row input:focus{border-color:#00d084;}
+
+    /* TEMPLATE PILLS */
+    .templates{background:#0f0f0f;padding:8px 24px;border-bottom:1px solid #222;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;}
+    .pill{background:#1a1a1a;border:1px solid #2a2a2a;color:#888;font-size:11px;padding:4px 12px;border-radius:20px;cursor:pointer;transition:all 0.2s;}
+    .pill:hover{border-color:#00d084;color:#00d084;}
+    .pill.active{background:#00d08422;border-color:#00d084;color:#00d084;}
+
+    /* PANELS */
+    .panel{display:none;flex:1;overflow:hidden;flex-direction:column;}
+    .panel.active{display:flex;}
+
+    /* CHAT PANEL */
+    #chat-box{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;}
+    .message{max-width:72%;padding:12px 16px;border-radius:12px;font-size:13px;line-height:1.7;white-space:pre-wrap;word-wrap:break-word;}
+    .user-message{background:#00d084;color:#000;align-self:flex-end;border-bottom-right-radius:2px;font-weight:500;}
+    .ai-message{background:#161616;color:#e8e8e8;align-self:flex-start;border-bottom-left-radius:2px;border:1px solid #222;}
+    .msg-meta{font-size:10px;color:#444;margin-top:6px;display:flex;align-items:center;gap:8px;}
+    .token-chip{background:#1e1e1e;color:#00d084;font-size:10px;padding:2px 7px;border-radius:10px;}
+    .time-chip{background:#1e1e1e;color:#888;font-size:10px;padding:2px 7px;border-radius:10px;}
+    .typing{background:#161616;color:#555;align-self:flex-start;padding:12px 16px;border-radius:12px;font-size:13px;border:1px solid #222;}
+    .typing span{animation:blink 1.2s infinite;}
+    .typing span:nth-child(2){animation-delay:0.2s;}
+    .typing span:nth-child(3){animation-delay:0.4s;}
+    @keyframes blink{0%,100%{opacity:0.2;}50%{opacity:1;}}
+
+    /* INPUT AREA */
+    .input-area{background:#111;padding:14px 24px;border-top:1px solid #222;display:flex;gap:10px;flex-shrink:0;}
+    textarea{flex:1;background:#1a1a1a;color:#f0f0f0;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;font-size:13px;resize:none;outline:none;font-family:inherit;line-height:1.5;}
+    textarea:focus{border-color:#00d084;}
+    .btn-send{background:#00d084;color:#000;border:none;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity 0.2s;white-space:nowrap;}
+    .btn-send:hover{opacity:0.85;}
+    .btn-clear{background:#1a1a1a;color:#555;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;font-size:12px;cursor:pointer;transition:all 0.2s;}
+    .btn-clear:hover{color:#aaa;border-color:#444;}
+    .btn-export{background:#1a1a1a;color:#555;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;font-size:12px;cursor:pointer;transition:all 0.2s;}
+    .btn-export:hover{color:#00d084;border-color:#00d084;}
+
+    /* COMPARE PANEL */
+    #compare-panel{flex:1;display:none;flex-direction:column;overflow:hidden;}
+    #compare-panel.active{display:flex;}
+    .compare-controls{padding:12px 24px;border-bottom:1px solid #222;display:flex;gap:16px;align-items:center;background:#0f0f0f;flex-shrink:0;}
+    .compare-grid{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#222;overflow:hidden;}
+    .compare-col{background:#0a0a0a;display:flex;flex-direction:column;overflow:hidden;}
+    .compare-header{padding:12px 16px;background:#111;border-bottom:1px solid #222;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .compare-header span{font-size:12px;font-weight:700;color:#00d084;}
+    .compare-body{flex:1;overflow-y:auto;padding:16px;}
+    .compare-result{background:#161616;border:1px solid #222;border-radius:10px;padding:14px;font-size:13px;line-height:1.7;white-space:pre-wrap;color:#e8e8e8;min-height:100px;}
+    .compare-result.empty{color:#333;font-style:italic;}
+    .compare-meta{margin-top:8px;display:flex;gap:8px;}
+    .compare-input{padding:14px 24px;border-top:1px solid #222;display:flex;gap:10px;background:#111;flex-shrink:0;}
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <h1>⚡ LLM Playground</h1>
+  <div class="header-right">
+    <span class="badge">Groq API</span>
+    <span class="badge">Python + Flask</span>
+  </div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('chat')">💬 Chat</div>
+  <div class="tab" onclick="switchTab('compare')">⚖️ Compare Models</div>
+</div>
+
+<!-- CONTROLS (shared) -->
+<div class="controls">
+  <div class="ctrl-group">
+    <label>Model</label>
+    <select id="model-select">
+      <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+      <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+      <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+      <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+    </select>
+  </div>
+  <div class="ctrl-group">
+    <label>Temperature</label>
+    <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.7"/>
+    <span class="temp-val" id="temp-value">0.7</span>
+  </div>
+  <div class="system-prompt-row">
+    <label style="font-size:11px;color:#555;text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap;">System Prompt</label>
+    <input type="text" id="system-prompt" value="You are a helpful assistant."/>
+  </div>
+</div>
+
+<!-- PROMPT TEMPLATES -->
+<div class="templates">
+  <span style="font-size:11px;color:#444;align-self:center;">Quick Modes:</span>
+  <div class="pill active" onclick="setTemplate('default', this)">🤖 Default</div>
+  <div class="pill" onclick="setTemplate('analyst', this)">📊 Financial Analyst</div>
+  <div class="pill" onclick="setTemplate('sentiment', this)">📈 Sentiment Analysis</div>
+  <div class="pill" onclick="setTemplate('earnings', this)">📋 Earnings Summarizer</div>
+  <div class="pill" onclick="setTemplate('risk', this)">⚠️ Risk Assessment</div>
+  <div class="pill" onclick="setTemplate('trader', this)">💰 Trader Mode</div>
+</div>
+
+<!-- CHAT PANEL -->
+<div class="panel active" id="chat-panel">
+  <div id="chat-box"></div>
+  <div class="input-area">
+    <textarea id="user-input" rows="2" placeholder="Type your message... (Enter to send, Shift+Enter for new line)"></textarea>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <button class="btn-send" onclick="sendMessage()">Send ↑</button>
+      <button class="btn-export" onclick="exportChat()">Export</button>
+      <button class="btn-clear" onclick="clearChat()">Clear</button>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARE PANEL -->
+<div id="compare-panel">
+  <div class="compare-controls">
+    <div class="ctrl-group">
+      <label>Model A</label>
+      <select id="compare-model-a">
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+        <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+        <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+      </select>
+    </div>
+    <span style="color:#333;font-size:16px;">vs</span>
+    <div class="ctrl-group">
+      <label>Model B</label>
+      <select id="compare-model-b">
+        <option value="llama-3.1-8b-instant">Llama 3.1 8B (Fast)</option>
+        <option value="llama-3.3-70b-versatile">Llama 3.3 70B</option>
+        <option value="openai/gpt-oss-120b">GPT-OSS 120B</option>
+        <option value="openai/gpt-oss-20b">GPT-OSS 20B</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="compare-grid">
+    <div class="compare-col">
+      <div class="compare-header">
+        <span id="label-a">Llama 3.3 70B</span>
+        <div class="compare-meta" id="meta-a"></div>
+      </div>
+      <div class="compare-body">
+        <div class="compare-result empty" id="result-a">Response will appear here...</div>
+      </div>
+    </div>
+    <div class="compare-col">
+      <div class="compare-header">
+        <span id="label-b">Llama 3.1 8B (Fast)</span>
+        <div class="compare-meta" id="meta-b"></div>
+      </div>
+      <div class="compare-body">
+        <div class="compare-result empty" id="result-b">Response will appear here...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="compare-input">
+    <textarea id="compare-input" rows="2" placeholder="Type a prompt to compare both models side by side... (Enter to send)"></textarea>
+    <button class="btn-send" onclick="runComparison()">Compare ↑</button>
+  </div>
+</div>
+
+<script>
+  // Template prompts
+  const TEMPLATES = {
+    default: "You are a helpful assistant.",
+    analyst: "You are a senior Wall Street financial analyst with 20 years experience. You speak in sharp, confident, data-driven sentences. You always mention risks alongside opportunities.",
+    sentiment: "You are a financial sentiment analysis engine. When given any financial text, news, or earnings data, you respond with: SENTIMENT (Bullish/Bearish/Neutral), CONFIDENCE (0-100%), KEY SIGNALS (bullet points), and TRADING IMPLICATION. Be precise and clinical.",
+    earnings: "You are an expert at analyzing earnings call transcripts. Extract and summarize: Revenue highlights, EPS vs expectations, Forward guidance, Management tone, Key risks mentioned, and One-line verdict. Use bullet points.",
+    risk: "You are a quantitative risk assessment AI. When given a portfolio, stock, or financial scenario, analyze: Market Risk, Liquidity Risk, Concentration Risk, Macro Risk, and give an overall Risk Score (1-10). Be specific and quantitative.",
+    trader: "You are an aggressive Wall Street trader. Short sentences. High conviction. No fluff. Always give a clear BUY, SELL, or HOLD with a one-line reason."
+  };
+
+  // Chat history for export
+  let chatLog = [];
+
+  // Temperature slider
+  document.getElementById('temperature').addEventListener('input', function() {
+    document.getElementById('temp-value').textContent = this.value;
+  });
+
+  // Enter to send
+  document.getElementById('user-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  document.getElementById('compare-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runComparison(); }
+  });
+
+  // Update compare model labels
+  document.getElementById('compare-model-a').addEventListener('change', function() {
+    document.getElementById('label-a').textContent = this.options[this.selectedIndex].text;
+  });
+  document.getElementById('compare-model-b').addEventListener('change', function() {
+    document.getElementById('label-b').textContent = this.options[this.selectedIndex].text;
+  });
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('chat-panel').classList.remove('active');
+    document.getElementById('compare-panel').classList.remove('active');
+
+    if (tab === 'chat') {
+      document.querySelectorAll('.tab')[0].classList.add('active');
+      document.getElementById('chat-panel').classList.add('active');
+    } else {
+      document.querySelectorAll('.tab')[1].classList.add('active');
+      document.getElementById('compare-panel').classList.add('active');
+    }
+  }
+
+  function setTemplate(key, el) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('system-prompt').value = TEMPLATES[key];
+  }
+
+  function addMessage(text, type, meta = {}) {
+    const chatBox = document.getElementById('chat-box');
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+    div.textContent = text;
+
+    if (meta.model) {
+      const metaDiv = document.createElement('div');
+      metaDiv.className = 'msg-meta';
+      metaDiv.innerHTML = `
+        🤖 ${meta.model}
+        <span class="token-chip">${meta.tokens} tokens</span>
+        <span class="time-chip">${meta.time}s</span>
+      `;
+      div.appendChild(metaDiv);
+    }
+
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('user-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const model = document.getElementById('model-select').value;
+    const temperature = document.getElementById('temperature').value;
+    const systemPrompt = document.getElementById('system-prompt').value;
+
+    addMessage(message, 'user-message');
+    chatLog.push({ role: 'user', content: message });
+    input.value = '';
+
+    // Typing indicator
+    const chatBox = document.getElementById('chat-box');
+    const typing = document.createElement('div');
+    typing.className = 'typing';
+    typing.innerHTML = '<span>●</span><span>●</span><span>●</span>';
+    chatBox.appendChild(typing);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message, model, temperature, system_prompt: systemPrompt})
+      });
+      const data = await response.json();
+      typing.remove();
+      addMessage(data.reply, 'ai-message', {model: data.model, tokens: data.tokens, time: data.time});
+      chatLog.push({ role: 'assistant', content: data.reply, model: data.model });
+    } catch (err) {
+      typing.remove();
+      addMessage('Error: Could not get response. Check terminal for details.', 'ai-message');
+    }
+  }
+
+  async function runComparison() {
+    const input = document.getElementById('compare-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    const modelA = document.getElementById('compare-model-a').value;
+    const modelB = document.getElementById('compare-model-b').value;
+    const temperature = document.getElementById('temperature').value;
+    const systemPrompt = document.getElementById('system-prompt').value;
+
+    // Set loading state
+    document.getElementById('result-a').textContent = 'Thinking...';
+    document.getElementById('result-a').classList.add('empty');
+    document.getElementById('result-b').textContent = 'Thinking...';
+    document.getElementById('result-b').classList.add('empty');
+    document.getElementById('meta-a').innerHTML = '';
+    document.getElementById('meta-b').innerHTML = '';
+
+    try {
+      const response = await fetch('/compare', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({message, model_a: modelA, model_b: modelB, temperature, system_prompt: systemPrompt})
+      });
+      const data = await response.json();
+
+      const resultA = document.getElementById('result-a');
+      resultA.textContent = data.model_a.reply;
+      resultA.classList.remove('empty');
+      document.getElementById('meta-a').innerHTML = `
+        <span class="token-chip">${data.model_a.tokens} tokens</span>
+        <span class="time-chip">${data.model_a.time}s</span>
+      `;
+
+      const resultB = document.getElementById('result-b');
+      resultB.textContent = data.model_b.reply;
+      resultB.classList.remove('empty');
+      document.getElementById('meta-b').innerHTML = `
+        <span class="token-chip">${data.model_b.tokens} tokens</span>
+        <span class="time-chip">${data.model_b.time}s</span>
+      `;
+
+    } catch (err) {
+      document.getElementById('result-a').textContent = 'Error. Check terminal.';
+      document.getElementById('result-b').textContent = 'Error. Check terminal.';
+    }
+  }
+
+  function exportChat() {
+    if (chatLog.length === 0) { alert('No chat to export yet!'); return; }
+    let text = '=== LLM Playground Chat Export ===\n\n';
+    chatLog.forEach(msg => {
+      const role = msg.role === 'user' ? 'YOU' : `AI (${msg.model || 'assistant'})`;
+      text += `[${role}]\n${msg.content}\n\n`;
+    });
+    const blob = new Blob([text], {type: 'text/plain'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'chat-export.txt';
+    a.click();
+  }
+
+  async function clearChat() {
+    await fetch('/clear', {method: 'POST'});
+    document.getElementById('chat-box').innerHTML = '';
+    chatLog = [];
+  }
+</script>
+</body>
+</html>
