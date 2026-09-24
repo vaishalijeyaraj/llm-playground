@@ -187,12 +187,21 @@ async function loadModels() {
     ).join('');
 
     const status = document.getElementById('model-status');
-    if (data.fallback) {
-      status.textContent = 'Fallback models';
-      status.style.color = '#ff9900';
-    } else {
+    if (data.source === 'live') {
       status.textContent = `${availableModels.length} models live`;
       status.style.color = '#00d084';
+    } else if (data.source === 'fresh') {
+      status.textContent = `${availableModels.length} models (fresh cache)`;
+      status.style.color = '#00d084';
+    } else if (data.source === 'acceptable') {
+      status.textContent = `${availableModels.length} models (cached)`;
+      status.style.color = '#ff9900';
+    } else if (data.source === 'stale') {
+      status.textContent = `${availableModels.length} models (stale cache)`;
+      status.style.color = '#ff6600';
+    } else {
+      status.textContent = 'Emergency fallback models';
+      status.style.color = '#ff4444';
     }
 
     // Init compare with 2 columns
