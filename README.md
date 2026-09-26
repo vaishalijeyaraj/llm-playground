@@ -2,8 +2,8 @@
 
 A full-stack AI playground for experimenting with large language models in real time — built with a focus on financial analysis applications.
 
-**Live Demo:** https://llmplayground.up.railway.app/  
-**Built by:** Your Name Here  ← change this
+**Live Demo:** [https://llm-playground-kl6r.onrender.com](https://llm-playground-kl6r.onrender.com) 
+**Built by:** Vaishali J
 
 ---
 
