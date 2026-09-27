@@ -4,6 +4,8 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LLM Playground</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:'Segoe UI',sans-serif;background:#0a0a0a;color:#f0f0f0;height:100vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -87,6 +89,38 @@
     ::-webkit-scrollbar{width:4px;height:4px;}
     ::-webkit-scrollbar-track{background:transparent;}
     ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:4px;}
+
+    .ai-message h1, .ai-message h2, .ai-message h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #00d084;
+  margin: 8px 0 4px 0;
+}
+.ai-message p { margin: 4px 0; }
+.ai-message ul, .ai-message ol {
+  padding-left: 16px;
+  margin: 4px 0;
+}
+.ai-message li { margin: 2px 0; }
+.ai-message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.ai-message th, .ai-message td {
+  border: 1px solid #2a2a2a;
+  padding: 6px 10px;
+  text-align: left;
+}
+.ai-message th { background: #1e1e1e; color: #00d084; }
+.ai-message code {
+  background: #1e1e1e;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.ai-message strong { color: #f0f0f0; }
   </style>
 </head>
 <body>
@@ -125,12 +159,12 @@
 
 <div class="templates">
   <span style="font-size:11px;color:#444;">Quick Modes:</span>
-  <div class="pill active" onclick="setTemplate('default',this)">🤖 Default</div>
-  <div class="pill" onclick="setTemplate('analyst',this)">📊 Financial Analyst</div>
-  <div class="pill" onclick="setTemplate('sentiment',this)">📈 Sentiment Analysis</div>
-  <div class="pill" onclick="setTemplate('earnings',this)">📋 Earnings Summarizer</div>
-  <div class="pill" onclick="setTemplate('risk',this)">⚠️ Risk Assessment</div>
-  <div class="pill" onclick="setTemplate('trader',this)">💰 Trader Mode</div>
+  <div class="pill active" data-key="default" onclick="setTemplate('default',this)">🤖 Default</div>
+  <div class="pill" data-key="analyst" onclick="setTemplate('analyst',this)">📊 Financial Analyst</div>
+  <div class="pill" data-key="sentiment" onclick="setTemplate('sentiment',this)">📈 Sentiment Analysis</div>
+  <div class="pill" data-key="earnings" onclick="setTemplate('earnings',this)">📋 Earnings Summarizer</div>
+  <div class="pill" data-key="risk" onclick="setTemplate('risk',this)">⚠️ Risk Assessment</div>
+  <div class="pill" data-key="trader" onclick="setTemplate('trader',this)">💰 Trader Mode</div>
 </div>
 
 <!-- CHAT PANEL -->
@@ -290,11 +324,26 @@ function addMessage(text, type, meta={}) {
   const chatBox = document.getElementById('chat-box');
   const div = document.createElement('div');
   div.className = `message ${type}`;
-  div.textContent = text;
+
+  // Render markdown safely for AI messages
+  if (type === 'ai-message') {
+    div.innerHTML = DOMPurify.sanitize(marked.parse(text));
+  } else {
+    div.textContent = text;
+  }
+
   if (meta.model) {
     const metaDiv = document.createElement('div');
     metaDiv.className = 'msg-meta';
-    metaDiv.innerHTML = `🤖 ${meta.model} <span class="chip token-chip">${meta.tokens} tokens</span><span class="chip time-chip">${meta.time}s</span>`;
+    let dataTag = '';
+    if (meta.data_notice && meta.data_notice.startsWith('ticker:')) {
+      const ticker = meta.data_notice.split(':')[1];
+      dataTag = `<span class="chip" style="background:#1a2a1a;color:#00d084;border:1px solid #00d08444;">📊 live data: ${ticker}</span>`;
+    } else if (meta.data_notice && meta.data_notice.startsWith('fetch_failed:')) {
+      const ticker = meta.data_notice.split(':')[1];
+      dataTag = `<span class="chip" style="background:#2a1a1a;color:#ff6b6b;border:1px solid #ff6b6b44;">⚠️ data unavailable: ${ticker}</span>`;
+    }
+    metaDiv.innerHTML = `🤖 ${meta.model} <span class="chip token-chip">${meta.tokens} tokens</span><span class="chip time-chip">${meta.time}s</span>${dataTag}`;
     div.appendChild(metaDiv);
   }
   chatBox.appendChild(div);
@@ -325,13 +374,24 @@ async function sendMessage() {
     const response = await fetch('/chat', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({message, model, temperature, system_prompt: systemPrompt})
+      body: JSON.stringify({
+      message,
+      model,
+      temperature,
+      system_prompt: systemPrompt,
+      persona_key: document.querySelector('.pill.active')?.getAttribute('data-key') || 'default'
+      })
     });
     const data = await response.json();
     typing.remove();
 
     if (data.success) {
-      addMessage(data.reply, 'ai-message', {model: data.model, tokens: data.tokens, time: data.time});
+      addMessage(data.reply, 'ai-message', {
+        model: data.model,
+        tokens: data.tokens,
+        time: data.time,
+        data_notice: data.data_notice
+      });
       chatLog.push({role:'assistant', content: data.reply, model: data.model});
     } else {
       addMessage(data.error, 'error-message');
